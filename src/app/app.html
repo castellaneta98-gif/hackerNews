@@ -4,9 +4,9 @@
     <p class="subtitle">Le ultime notizie dal mondo tech aggiornate in tempo reale</p>
   </header>
 
-  <!-- Griglia delle News con sintassi classica universale -->
+  <!-- Griglia delle News collegata direttamente all'array standard -->
   <main class="news-grid">
-    <article class="news-card" *ngFor="let news of displayedNews; let i = index">
+    <article class="news-card" *ngFor="let news of displayedNews; let i = index"> <!-- 👈 AGGIORNATO SENZA PIPE ASYNC -->
       <div class="card-counter">#{{ i + 1 }}</div>
       <div class="card-content">
         <h2 class="card-title">{{ news.title }}</h2>
