@@ -1,64 +1,49 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { Component, OnInit, signal } from '@angular/core';
 import { forkJoin, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
-
-export interface NewsItem {
-  id: number;
-  title: string;
-  url?: string;
-  time: number;
-}
-
-const URL_STORIES = 'https://hacker-news.firebaseio.com/v0/newstories.json';
-const URL_ITEM = 'https://hacker-news.firebaseio.com/v0/item/';
+import { HackerNewsService } from './hacker-news';
+import { NewsItem } from './models/news-item.model';
+import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DatePipe],
   templateUrl: './app.html',
   styleUrls: ['./app.css']
 })
 export class AppComponent implements OnInit {
-  allIds: number[] = [];
-  displayedNews: NewsItem[] = [];
-  currentIndex = 0;
-  itemsPerPage = 10;
-  loading = false;
+  displayedNews = signal<NewsItem[]>([]);
+  loading = signal(false);
+  error = signal(false);
 
-  constructor(
-    private http: HttpClient,
-    private cdr: ChangeDetectorRef
-  ) {}
+  private allIds: number[] = [];
+  private currentIndex = 0;
+  private itemsPerPage = 10;
+
+  constructor(private newsService: HackerNewsService) {}
 
   ngOnInit(): void {
-    this.displayedNews = [];
-    this.allIds = [];
-    this.currentIndex = 0;
-
     this.loadAllIds();
   }
 
   loadAllIds(): void {
-    this.loading = true;
-    this.cdr.detectChanges();
+    this.loading.set(true);
+    this.error.set(false);
 
-    this.http.get<number[]>(URL_STORIES).subscribe({
+    this.newsService.getStoryIds().subscribe({
       next: (ids) => {
         if (ids && ids.length > 0) {
           this.allIds = ids.filter(id => typeof id === 'number');
           this.loadNextBatch();
         } else {
-          this.loading = false;
-          this.cdr.detectChanges();
+          this.loading.set(false);
         }
       },
       error: (err) => {
-        console.error("Errore nel recupero degli ID:", err);
-        this.loading = false;
-        this.cdr.detectChanges();
+        console.error('Errore nel recupero degli ID:', err);
+        this.error.set(true);
+        this.loading.set(false);
       }
     });
   }
@@ -66,13 +51,12 @@ export class AppComponent implements OnInit {
   loadNextBatch(): void {
     if (this.currentIndex >= this.allIds.length) return;
 
-    this.loading = true;
-    this.cdr.detectChanges();
+    this.loading.set(true);
 
     const nextBatchIds = this.allIds.slice(this.currentIndex, this.currentIndex + this.itemsPerPage);
 
     const requests = nextBatchIds.map(id =>
-      this.http.get<NewsItem>(URL_ITEM + id + '.json').pipe(
+      this.newsService.getItem(id).pipe(
         catchError(() => of(null))
       )
     );
@@ -81,25 +65,16 @@ export class AppComponent implements OnInit {
       map(stories => stories.filter((story): story is NewsItem => story !== null && !!story.title))
     ).subscribe({
       next: (newsItems) => {
-        const processedItems = newsItems.map((item, index) => ({
-          id: item.id || (this.currentIndex + index + 1),
-          title: item.title,
-          url: item.url || '',
-          time: item.time || Math.floor(Date.now() / 1000)
-        }));
-
-        this.displayedNews = [...this.displayedNews, ...processedItems];
+        this.displayedNews.update(current => [...current, ...newsItems]);
         this.currentIndex += this.itemsPerPage;
-        this.loading = false;
-        this.cdr.detectChanges();
+        this.loading.set(false);
       },
       error: (err) => {
-        console.error("Errore nel download del blocco news:", err);
-        this.loading = false;
-        this.cdr.detectChanges();
+        console.error('Errore nel download del blocco news:', err);
+        this.error.set(true);
+        this.loading.set(false);
       }
     });
   }
 }
-
 

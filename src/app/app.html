@@ -1,44 +1,52 @@
 <div class="container">
   <header class="app-header">
     <h1>Hacker News Dashboard</h1>
-    <p class="subtitle">Le ultime notizie dal mondo tech aggiornate in tempo reale</p>
+    <p class="subtitle">Le ultime news dal mondo tech aggiornate in tempo reale</p>
   </header>
 
-  <!-- Griglia delle News collegata direttamente all'array standard -->
-  <main class="news-grid">
-    <article class="news-card" *ngFor="let news of displayedNews; let i = index"> <!-- 👈 AGGIORNATO SENZA PIPE ASYNC -->
-      <div class="card-counter">#{{ i + 1 }}</div>
-      <div class="card-content">
-        <h2 class="card-title">{{ news.title }}</h2>
-        
-        <div class="card-metadata">
-          <span class="news-date">
-            📅 {{ news.time * 1000 | date:'dd/MM/yyyy - HH:mm' }}
-          </span>
-        </div>
+  @if (error()) {
+    <div class="error-container">
+      <p class="error-message">Si è verificato un errore nel caricamento delle news.</p>
+    </div>
+  }
 
-        <div class="card-actions">
-          <a *ngIf="news.url; else noLink" [href]="news.url" target="_blank" class="btn-read">
-            Leggi Articolo ↗
-          </a>
-          <ng-template #noLink>
-            <span class="no-link-badge">Discussione Interna (No Link)</span>
-          </ng-template>
+  @if (!loading() && displayedNews().length === 0 && !error()) {
+    <div class="empty-state">
+      <p>Nessuna news disponibile al momento.</p>
+    </div>
+  }
+
+  <div class="news-grid">
+    @for (news of displayedNews(); track news.id; let i = $index) {
+      <div class="news-card">
+        <span class="card-counter">#{{ i + 1 }}</span>
+        <div class="card-content">
+          <h2 class="card-title">{{ news.title }}</h2>
+          <div class="card-metadata">
+            <span class="news-date">{{ news.time * 1000 | date:'dd/MM/yyyy - HH:mm' }}</span>
+          </div>
+          <div class="card-actions">
+            @if (news.url) {
+              <a class="btn-read" [href]="news.url" target="_blank" rel="noopener">Leggi articolo →</a>
+            } @else {
+              <span class="no-link-badge">Nessun link disponibile</span>
+            }
+          </div>
         </div>
       </div>
-    </article>
-  </main>
-
-  <!-- Stato di Caricamento -->
-  <div class="loader-container" *ngIf="loading">
-    <div class="spinner"></div>
-    <p>Caricamento notizie in corso...</p>
+    }
   </div>
 
-  <!-- Sezione Azioni / Paginazione -->
-  <footer class="app-footer" *ngIf="!loading && currentIndex < allIds.length">
-    <button class="btn-load-more" (click)="loadNextBatch()">
-      Carica Altre 10 News
-    </button>
-  </footer>
+  @if (loading()) {
+    <div class="loader-container">
+      <div class="spinner"></div>
+      <p>Caricamento in corso...</p>
+    </div>
+  }
+
+  @if (!loading() && displayedNews().length > 0) {
+    <div class="app-footer">
+      <button class="btn-load-more" (click)="loadNextBatch()">Load more</button>
+    </div>
+  }
 </div>
